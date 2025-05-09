@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,11 +14,11 @@ import {
   Tooltip,
   Legend,
   TimeScale,
-  ArcElement
-} from 'chart.js';
-import { Bar, Line, Pie } from 'react-chartjs-2';
-import FileUpload from '@/components/FileUpload';
-import 'chartjs-adapter-date-fns';
+  ArcElement,
+} from "chart.js";
+import { Bar, Line, Pie } from "react-chartjs-2";
+import FileUpload from "@/components/FileUpload";
+import "chartjs-adapter-date-fns";
 
 ChartJS.register(
   CategoryScale,
@@ -72,28 +72,22 @@ export default function Home() {
   const [analytics, setAnalytics] = useState<MerchantAnalytics[]>([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
-    startDate: '',
-    endDate: '',
-    merchantName: '',
-    mid: '',
-    tid: '',
-    sortBy: 'totalAmount',
-    sortOrder: 'desc'
+    startDate: "",
+    endDate: "",
+    merchantName: "",
+    mid: "",
+    tid: "",
+    sortBy: "totalAmount",
+    sortOrder: "desc",
   });
 
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [user, router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchAnalytics();
-    }
-  }, [user, filters]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       const queryParams = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -101,32 +95,45 @@ export default function Home() {
       });
       
       const response = await fetch(`/api/analytics?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
+      console.log("Received analytics data:", data);
       setAnalytics(data);
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error("Error fetching analytics:", error);
+      setAnalytics([]);
     } finally {
       setLoadingAnalytics(false);
     }
-  };
+  }, [filters]);
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    if (user) {
+      fetchAnalytics();
+    }
+  }, [user, fetchAnalytics]);
+
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
-  const transactionAmountData = {
-    labels: analytics.map(item => item.merchantName),
+  const transactionAmountData = useMemo(() => ({
+    labels: analytics.map((item) => item.merchantName),
     datasets: [
       {
-        label: 'Total Amount',
-        data: analytics.map(item => item.totalAmount),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        label: "Total Amount",
+        data: analytics.map((item) => item.totalAmount),
+        backgroundColor: "rgba(75, 192, 192, 0.6)",
       },
     ],
-  };
+  }), [analytics]);
 
-  const hourlyVolumeData = {
+  const hourlyVolumeData = useMemo(() => ({
     labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
     datasets: analytics.slice(0, 3).map((merchant, index) => ({
       label: merchant.merchantName,
@@ -134,36 +141,40 @@ export default function Home() {
       borderColor: `hsl(${index * 120}, 70%, 50%)`,
       fill: false,
     })),
-  };
+  }), [analytics]);
 
-  const dailyVolumeData = {
-    labels: analytics[0]?.dailyVolumes.map(v => v.date) || [],
+  const dailyVolumeData = useMemo(() => ({
+    labels: analytics[0]?.dailyVolumes.map((v) => v.date) || [],
     datasets: analytics.slice(0, 3).map((merchant, index) => ({
       label: merchant.merchantName,
-      data: merchant.dailyVolumes.map(v => v.count),
+      data: merchant.dailyVolumes.map((v) => v.count),
       borderColor: `hsl(${index * 120}, 70%, 50%)`,
       fill: false,
     })),
-  };
+  }), [analytics]);
 
-  const generatePieData = (distribution: { [key: string]: number }, label: string) => ({
+  const generatePieData = useCallback((
+    distribution: { [key: string]: number },
+    label: string
+  ) => ({
     labels: Object.keys(distribution),
     datasets: [
       {
         label,
         data: Object.values(distribution),
-        backgroundColor: Object.keys(distribution).map((_, i) => 
-          `hsl(${(i * 360) / Object.keys(distribution).length}, 70%, 50%)`
+        backgroundColor: Object.keys(distribution).map(
+          (_, i) =>
+            `hsl(${(i * 360) / Object.keys(distribution).length}, 70%, 50%)`
         ),
       },
     ],
-  });
+  }), []);
 
   const barChartOptions = {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: "top" as const,
       },
     },
     scales: {
@@ -171,41 +182,41 @@ export default function Home() {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Amount'
-        }
-      }
-    }
+          text: "Amount",
+        },
+      },
+    },
   };
 
   const lineChartOptions = {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: "top" as const,
       },
     },
     scales: {
       x: {
         title: {
           display: true,
-          text: 'Hour'
-        }
+          text: "Hour",
+        },
       },
       y: {
         beginAtZero: true,
         title: {
           display: true,
-          text: 'Number of Transactions'
-        }
-      }
-    }
+          text: "Number of Transactions",
+        },
+      },
+    },
   };
 
   useEffect(() => {
-    console.log('Analytics data:', analytics);
-    console.log('Transaction Amount Data:', transactionAmountData);
-    console.log('Hourly Volume Data:', hourlyVolumeData);
-  }, [analytics]);
+    console.log("Analytics data:", analytics);
+    console.log("Transaction Amount Data:", transactionAmountData);
+    console.log("Hourly Volume Data:", hourlyVolumeData);
+  }, [analytics, transactionAmountData, hourlyVolumeData]);
 
   if (loadingAnalytics) {
     return (
@@ -221,7 +232,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">Transaction Analytics Dashboard</h1>
+              <h1 className="text-xl font-semibold text-gray-900">
+                Transaction Analytics Dashboard
+              </h1>
             </div>
             <div className="flex items-center">
               <button
@@ -246,7 +259,9 @@ export default function Home() {
             <h2 className="text-lg font-medium text-gray-900 mb-4">Filters</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Start Date
+                </label>
                 <input
                   type="date"
                   name="startDate"
@@ -256,7 +271,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">End Date</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  End Date
+                </label>
                 <input
                   type="date"
                   name="endDate"
@@ -266,7 +283,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Merchant Name</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Merchant Name
+                </label>
                 <input
                   type="text"
                   name="merchantName"
@@ -276,7 +295,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">MID</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  MID
+                </label>
                 <input
                   type="text"
                   name="mid"
@@ -286,7 +307,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">TID</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  TID
+                </label>
                 <input
                   type="text"
                   name="tid"
@@ -296,7 +319,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Sort By</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Sort By
+                </label>
                 <select
                   name="sortBy"
                   value={filters.sortBy}
@@ -307,11 +332,15 @@ export default function Home() {
                   <option value="totalTransactions">Total Transactions</option>
                   <option value="merchantName">Merchant Name</option>
                   <option value="successRate">Success Rate</option>
-                  <option value="averageTransactionAmount">Average Transaction</option>
+                  <option value="averageTransactionAmount">
+                    Average Transaction
+                  </option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Sort Order</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Sort Order
+                </label>
                 <select
                   name="sortOrder"
                   value={filters.sortOrder}
@@ -329,7 +358,9 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Transaction Amount Chart */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Transaction Amounts</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                Transaction Amounts
+              </h2>
               <div className="h-80">
                 <Bar data={transactionAmountData} options={barChartOptions} />
               </div>
@@ -337,7 +368,9 @@ export default function Home() {
 
             {/* Hourly Volume Chart */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Hourly Transaction Volume</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                Hourly Transaction Volume
+              </h2>
               <div className="h-80">
                 <Line data={hourlyVolumeData} options={lineChartOptions} />
               </div>
@@ -345,7 +378,9 @@ export default function Home() {
 
             {/* Daily Volume Chart */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Daily Transaction Volume</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                Daily Transaction Volume
+              </h2>
               <div className="h-80">
                 <Line data={dailyVolumeData} options={barChartOptions} />
               </div>
@@ -353,31 +388,46 @@ export default function Home() {
 
             {/* Distribution Charts */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Listener Distribution</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                Listener Distribution
+              </h2>
               <div className="h-80">
-                <Pie 
-                  data={generatePieData(analytics[0]?.listnerDesDistribution || {}, 'Listener Types')} 
-                  options={barChartOptions} 
+                <Pie
+                  data={generatePieData(
+                    analytics[0]?.listnerDesDistribution || {},
+                    "Listener Types"
+                  )}
+                  options={barChartOptions}
                 />
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Channel Distribution</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                Channel Distribution
+              </h2>
               <div className="h-80">
-                <Pie 
-                  data={generatePieData(analytics[0]?.channelDesDistribution || {}, 'Channel Types')} 
-                  options={barChartOptions} 
+                <Pie
+                  data={generatePieData(
+                    analytics[0]?.channelDesDistribution || {},
+                    "Channel Types"
+                  )}
+                  options={barChartOptions}
                 />
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">On/Off Status Distribution</h2>
+              <h2 className="text-lg font-medium text-gray-900 mb-4">
+                On/Off Status Distribution
+              </h2>
               <div className="h-80">
-                <Pie 
-                  data={generatePieData(analytics[0]?.onOffStatusDistribution || {}, 'Status')} 
-                  options={barChartOptions} 
+                <Pie
+                  data={generatePieData(
+                    analytics[0]?.onOffStatusDistribution || {},
+                    "Status"
+                  )}
+                  options={barChartOptions}
                 />
               </div>
             </div>
@@ -385,7 +435,9 @@ export default function Home() {
 
           {/* MCC Table */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">MCC Distribution</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
+              MCC Distribution
+            </h2>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
