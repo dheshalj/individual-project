@@ -159,7 +159,25 @@ export default function Home() {
     ],
   });
 
-  const chartOptions = {
+  const barChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Amount'
+        }
+      }
+    }
+  };
+
+  const lineChartOptions = {
     responsive: true,
     plugins: {
       legend: {
@@ -168,16 +186,9 @@ export default function Home() {
     },
     scales: {
       x: {
-        type: 'time' as const,
-        time: {
-          unit: 'day' as const,
-          displayFormats: {
-            day: 'MMM d'
-          }
-        },
         title: {
           display: true,
-          text: 'Date'
+          text: 'Hour'
         }
       },
       y: {
@@ -189,6 +200,12 @@ export default function Home() {
       }
     }
   };
+
+  useEffect(() => {
+    console.log('Analytics data:', analytics);
+    console.log('Transaction Amount Data:', transactionAmountData);
+    console.log('Hourly Volume Data:', hourlyVolumeData);
+  }, [analytics]);
 
   if (loadingAnalytics) {
     return (
@@ -314,7 +331,7 @@ export default function Home() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Transaction Amounts</h2>
               <div className="h-80">
-                <Bar data={transactionAmountData} options={chartOptions} />
+                <Bar data={transactionAmountData} options={barChartOptions} />
               </div>
             </div>
 
@@ -322,7 +339,7 @@ export default function Home() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Hourly Transaction Volume</h2>
               <div className="h-80">
-                <Line data={hourlyVolumeData} options={chartOptions} />
+                <Line data={hourlyVolumeData} options={lineChartOptions} />
               </div>
             </div>
 
@@ -330,7 +347,7 @@ export default function Home() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Daily Transaction Volume</h2>
               <div className="h-80">
-                <Line data={dailyVolumeData} options={chartOptions} />
+                <Line data={dailyVolumeData} options={barChartOptions} />
               </div>
             </div>
 
@@ -340,7 +357,7 @@ export default function Home() {
               <div className="h-80">
                 <Pie 
                   data={generatePieData(analytics[0]?.listnerDesDistribution || {}, 'Listener Types')} 
-                  options={chartOptions} 
+                  options={barChartOptions} 
                 />
               </div>
             </div>
@@ -350,7 +367,7 @@ export default function Home() {
               <div className="h-80">
                 <Pie 
                   data={generatePieData(analytics[0]?.channelDesDistribution || {}, 'Channel Types')} 
-                  options={chartOptions} 
+                  options={barChartOptions} 
                 />
               </div>
             </div>
@@ -360,7 +377,7 @@ export default function Home() {
               <div className="h-80">
                 <Pie 
                   data={generatePieData(analytics[0]?.onOffStatusDistribution || {}, 'Status')} 
-                  options={chartOptions} 
+                  options={barChartOptions} 
                 />
               </div>
             </div>
